@@ -1,0 +1,488 @@
+<body>
+<script src="matter.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<script>
+var Example = Example || {};
+
+Example.ragdoll = function() {
+    var Engine = Matter.Engine,
+        Events = Matter.Events,
+        Render = Matter.Render,
+        Runner = Matter.Runner,
+        Body = Matter.Body,
+        Common = Matter.Common,
+        Composite = Matter.Composite,
+        Composites = Matter.Composites,
+        Constraint = Matter.Constraint,
+        MouseConstraint = Matter.MouseConstraint,
+        Mouse = Matter.Mouse,
+        World = Matter.World,
+        Bodies = Matter.Bodies,
+        Vector = Matter.Vector;
+
+
+    var engine = Engine.create(),
+        world = engine.world;
+
+    var viewportWidth = Math.max(document.documentElement.clientWidth, window.innerWidth || 0);
+    var viewportHeight = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+
+    console.log(viewportWidth, viewportHeight)
+
+
+    var render = Render.create({
+        element: document.body,
+        engine: engine,
+        options: {
+            width: viewportWidth,
+            height: viewportHeight,
+            showAngleIndicator: false,
+            background: '#0f0f13',
+            wireframes: false
+        }
+    });
+
+    Render.run(render);
+
+
+    var runner = Runner.create();
+    Runner.run(runner, engine);
+
+    var ragdolls = Composite.create();
+
+    for (var i = 0, ragdollNo = 1; i < viewportWidth; i += 50, ragdollNo++) {
+        var ragdoll = Example.ragdoll.ragdoll(i + (Math.floor(Math.random() * 8)), 0, 0.3, {
+            ragdollNo: ragdollNo
+        });
+
+        Composite.add(ragdolls, ragdoll);
+    }
+
+    for (var y = 8, j = 0; y < viewportHeight; y += (viewportHeight / 16), j++)
+        for (var i = 0; i < viewportWidth; i += 50) {
+            if (Math.random() > 0.1) {
+                World.add(world, [Bodies.circle(i + (j % 2 * ((viewportHeight / 16) / 2)) + (Math.floor(Math.random() * 10)), y, 5, {
+                    isStatic: true,
+                    render: {
+                        fillStyle: 'black'
+                    }
+                })]);
+            }
+
+        }
+
+    World.add(world, [ragdolls]);
+
+
+
+    Events.on(engine, 'afterUpdate', function(event) {
+
+
+
+
+        for (i = 0; i < ragdolls.composites.length; i += 1) {
+            var ragdoll = ragdolls.composites[i],
+                bounds = Composite.bounds(ragdoll);
+
+            if (bounds.min.y > render.bounds.max.y) {
+                Composite.translate(ragdoll, {
+                    x: 0,
+                    y: -render.bounds.max.y - 200
+                });
+                ragdoll.options.ragdollNo += (1 / 32);
+            }
+            if (bounds.min.x > render.bounds.max.x) {
+                Composite.translate(ragdoll, {
+                    x: -render.bounds.max.x,
+                    y: 0
+                });
+            } else if (bounds.max.x < render.bounds.min.x) {
+                Composite.translate(ragdoll, {
+                    x: render.bounds.max.x,
+                    y: 0
+                });
+            }
+
+        }
+
+
+    });
+
+
+    var mouse = Mouse.create(render.canvas),
+        mouseConstraint = MouseConstraint.create(engine, {
+            mouse: mouse,
+            constraint: {
+                stiffness: 0.6,
+                length: 0,
+                angularStiffness: 0,
+                render: {
+                    visible: false
+                }
+            }
+        });
+
+    World.add(world, mouseConstraint);
+
+    render.mouse = mouse;
+
+    Render.lookAt(render, {
+        min: {
+            x: 0,
+            y: 0
+        },
+        max: {
+            x: viewportWidth,
+            y: viewportHeight
+        }
+    });
+
+    return {
+        engine: engine,
+        runner: runner,
+        render: render,
+        canvas: render.canvas,
+        stop: function() {
+            Matter.Render.stop(render);
+            Matter.Runner.stop(runner);
+        }
+    };
+};
+
+Example.ragdoll.ragdoll = function(x, y, scale, options) {
+
+    var color1 = {
+        red: 0,
+        green: 17,
+        blue: 91
+    };
+    var color2 = {
+        red: 128,
+        green: 9,
+        blue: 9
+    };
+    var fade = (options.ragdollNo / 42);
+    var diffRed = color2.red - color1.red;
+    var diffGreen = color2.green - color1.green;
+    var diffBlue = color2.blue - color1.blue;
+
+    var gradient = {
+        red: parseInt(Math.floor(color1.red + (diffRed * fade)), 10),
+        green: parseInt(Math.floor(color1.green + (diffGreen * fade)), 10),
+        blue: parseInt(Math.floor(color1.blue + (diffBlue * fade)), 10),
+    };
+
+    var dollColor = 'rgb(' + gradient.red + ',' + gradient.green + ',' + gradient.blue + ')';
+
+    if (options.ragdollNo == 6) {
+
+    }
+
+    console.log(options.ragdollNo)
+
+    scale = typeof scale === 'undefined' ? 1 : scale;
+
+    var Body = Matter.Body,
+        Bodies = Matter.Bodies,
+        Constraint = Matter.Constraint,
+        Composite = Matter.Composite,
+        Common = Matter.Common;
+
+    var headOptions = Common.extend({
+        label: 'head',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: [15 * scale, 15 * scale, 15 * scale, 15 * scale]
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var chestOptions = Common.extend({
+        label: 'chest',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: [20 * scale, 20 * scale, 26 * scale, 26 * scale]
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var leftArmOptions = Common.extend({
+        label: 'left-arm',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: 10 * scale
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var leftLowerArmOptions = Common.extend({}, leftArmOptions, {
+        render: {
+            fillStyle: dollColor
+        }
+    });
+
+    var rightArmOptions = Common.extend({
+        label: 'right-arm',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: 10 * scale
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var rightLowerArmOptions = Common.extend({}, rightArmOptions, {
+        render: {
+            fillStyle: dollColor
+        }
+    });
+
+    var leftLegOptions = Common.extend({
+        label: 'left-leg',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: 10 * scale
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var leftLowerLegOptions = Common.extend({}, leftLegOptions, {
+        render: {
+            fillStyle: dollColor
+        }
+    });
+
+    var rightLegOptions = Common.extend({
+        label: 'right-leg',
+        collisionFilter: {
+            group: Body.nextGroup(true)
+        },
+        chamfer: {
+            radius: 10 * scale
+        },
+        render: {
+            fillStyle: dollColor
+        }
+    }, options);
+
+    var rightLowerLegOptions = Common.extend({}, rightLegOptions, {
+        render: {
+            fillStyle: dollColor
+        }
+    });
+
+    var head = Bodies.rectangle(x, y - 60 * scale, 34 * scale, 40 * scale, headOptions);
+    var chest = Bodies.rectangle(x, y, 55 * scale, 80 * scale, chestOptions);
+    var rightUpperArm = Bodies.rectangle(x + 39 * scale, y - 15 * scale, 20 * scale, 40 * scale, rightArmOptions);
+    var rightLowerArm = Bodies.rectangle(x + 39 * scale, y + 25 * scale, 20 * scale, 60 * scale, rightLowerArmOptions);
+    var leftUpperArm = Bodies.rectangle(x - 39 * scale, y - 15 * scale, 20 * scale, 40 * scale, leftArmOptions);
+    var leftLowerArm = Bodies.rectangle(x - 39 * scale, y + 25 * scale, 20 * scale, 60 * scale, leftLowerArmOptions);
+    var leftUpperLeg = Bodies.rectangle(x - 20 * scale, y + 57 * scale, 20 * scale, 40 * scale, leftLegOptions);
+    var leftLowerLeg = Bodies.rectangle(x - 20 * scale, y + 97 * scale, 20 * scale, 60 * scale, leftLowerLegOptions);
+    var rightUpperLeg = Bodies.rectangle(x + 20 * scale, y + 57 * scale, 20 * scale, 40 * scale, rightLegOptions);
+    var rightLowerLeg = Bodies.rectangle(x + 20 * scale, y + 97 * scale, 20 * scale, 60 * scale, rightLowerLegOptions);
+
+    var chestToRightUpperArm = Constraint.create({
+        bodyA: chest,
+        pointA: {
+            x: 24 * scale,
+            y: -23 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -8 * scale
+        },
+        bodyB: rightUpperArm,
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var chestToLeftUpperArm = Constraint.create({
+        bodyA: chest,
+        pointA: {
+            x: -24 * scale,
+            y: -23 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -8 * scale
+        },
+        bodyB: leftUpperArm,
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var chestToLeftUpperLeg = Constraint.create({
+        bodyA: chest,
+        pointA: {
+            x: -10 * scale,
+            y: 30 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -10 * scale
+        },
+        bodyB: leftUpperLeg,
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var chestToRightUpperLeg = Constraint.create({
+        bodyA: chest,
+        pointA: {
+            x: 10 * scale,
+            y: 30 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -10 * scale
+        },
+        bodyB: rightUpperLeg,
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var upperToLowerRightArm = Constraint.create({
+        bodyA: rightUpperArm,
+        bodyB: rightLowerArm,
+        pointA: {
+            x: 0,
+            y: 15 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -25 * scale
+        },
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var upperToLowerLeftArm = Constraint.create({
+        bodyA: leftUpperArm,
+        bodyB: leftLowerArm,
+        pointA: {
+            x: 0,
+            y: 15 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -25 * scale
+        },
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var upperToLowerLeftLeg = Constraint.create({
+        bodyA: leftUpperLeg,
+        bodyB: leftLowerLeg,
+        pointA: {
+            x: 0,
+            y: 20 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -20 * scale
+        },
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var upperToLowerRightLeg = Constraint.create({
+        bodyA: rightUpperLeg,
+        bodyB: rightLowerLeg,
+        pointA: {
+            x: 0,
+            y: 20 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -20 * scale
+        },
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var headContraint = Constraint.create({
+        bodyA: head,
+        pointA: {
+            x: 0,
+            y: 25 * scale
+        },
+        pointB: {
+            x: 0,
+            y: -35 * scale
+        },
+        bodyB: chest,
+        stiffness: 0.6,
+        render: {
+            visible: false
+        }
+    });
+
+    var legToLeg = Constraint.create({
+        bodyA: leftLowerLeg,
+        bodyB: rightLowerLeg,
+        stiffness: 0.01,
+        render: {
+            visible: false
+        }
+    });
+
+    var person = Composite.create({
+        bodies: [
+            chest, head, leftLowerArm, leftUpperArm,
+            rightLowerArm, rightUpperArm, leftLowerLeg,
+            rightLowerLeg, leftUpperLeg, rightUpperLeg
+        ],
+        constraints: [
+            upperToLowerLeftArm, upperToLowerRightArm, chestToLeftUpperArm,
+            chestToRightUpperArm, headContraint, upperToLowerLeftLeg,
+            upperToLowerRightLeg, chestToLeftUpperLeg, chestToRightUpperLeg,
+            legToLeg
+        ]
+    });
+
+    return person;
+};
+Example.ragdoll();
+</script>
+</body>
